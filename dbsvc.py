@@ -9,7 +9,7 @@ pw = os.environ['dbpw']
 print("Environment = ", os.environ['dbpw'])
 
 c_info = {
-        "host": "ec2simplerdb.ckkqqktwkcji.us-east-1.rds.amazonaws.com",
+        "host": "database-userservice.ch46gnu5bohw.us-east-2.rds.amazonaws.com",
         "user": "dbuser",
         "password": pw,
         "cursorclass": pymysql.cursors.DictCursor,
