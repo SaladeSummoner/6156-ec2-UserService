@@ -12,16 +12,25 @@ import json
 import os
 import sys
 
-from flask import Flask, Response
+from flask import Flask, Response, Request
 from flask import request
 import pymysql
 from datetime import datetime
 
+import user
+
+print("Environment = ", os.environ)
+
+pw = os.environ['dbpw']
+
+print("Environment = ", os.environ['dbpw'])
+
 c_info = {
-        "user": "root",
-        "password": "dbuserdbuser",
+        "host": "database-userservice.ch46gnu5bohw.us-east-2.rds.amazonaws.com",
+        "user": "dbuser",
+        "password": pw,
         "cursorclass": pymysql.cursors.DictCursor,
-    }
+}
 
 
 application = Flask(__name__)
@@ -35,6 +44,31 @@ def health_check():
     rsp_str = json.dumps(rsp_data)
     rsp = Response(rsp_str, status=200, content_type="application/json")
     return rsp
+
+@application.route("/Users", methods=["GET", "POST"])
+def users():
+    connection = pymysql.connect(**c_info)
+    print("connection established")
+    try:
+        with connection.cursor() as cur:
+            if request.method == "POST":
+                details = request.form
+                res = user.insertUser(details, cur)
+                connection.commit()
+                return json.dumps(res, indent=4, default=str)
+
+            if request.method == "GET":
+                res = user.getUsers()
+                return json.dumps(res, indent=4, default=str)
+
+    except Exception as e:
+        print("Exeception occured:{}".format(e))
+    finally:
+        connection.close()
+        print("connect close")
+
+
+
 
 
 # run the app.
