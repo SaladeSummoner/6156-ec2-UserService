@@ -1,4 +1,3 @@
-
 # Import functions and objects the microservice needs.
 # - Flask is the top-level application. You implement the application by adding methods to it.
 # - Response enables creating well-formed HTTP/REST responses.
@@ -15,11 +14,13 @@ import logging
 
 from flask import Flask, Response, Request
 from flask import request
+
 import pymysql
 from datetime import datetime
 import data_table_adaptor as dta
 
 import user
+
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -30,22 +31,21 @@ resource_path_translator["Users"] = "user_table"
 resource_path_translator["Address"] = "address_table"
 _db_name = "userservice"
 
-
-
-
 print("Environment = ", os.environ)
 
 pw = os.environ['dbpw']
 # print("Environment = ", os.environ['dbpw'])
 
 c_info = {
-        "host": "database-userservice.ch46gnu5bohw.us-east-2.rds.amazonaws.com",
-        "port": 3306,
-        "user": "dbuser",
-        "password": pw,
-        "db" : "userservice",
-        "cursorclass": pymysql.cursors.DictCursor,
+    "host": "database-userservice.ch46gnu5bohw.us-east-2.rds.amazonaws.com",
+    "port": 3306,
+    "user": "dbuser",
+    "password": pw,
+    "db": "userservice",
+    "cursorclass": pymysql.cursors.DictCursor,
 }
+
+
 def handle_args(args):
     """
 
@@ -57,18 +57,19 @@ def handle_args(args):
     result = {}
 
     if args is not None:
-        for k,v in args.items():
+        for k, v in args.items():
             if type(v) == list:
                 v = v[0]
             result[k] = v
 
     return result
 
+
 def handle_error(e, result):
     return "Internal error.", 504, {'Content-Type': 'text/plain; charset=utf-8'}
 
-def log_and_extract_input(method, path_params=None):
 
+def log_and_extract_input(method, path_params=None):
     path = request.path
     args = dict(request.args)
     data = None
@@ -91,7 +92,7 @@ def log_and_extract_input(method, path_params=None):
     # Get rid of the weird way that Flask sometimes handles query parameters.
     args = handle_args(args)
 
-    inputs =  {
+    inputs = {
         "path": path,
         "method": method,
         "path_params": path_params,
@@ -100,7 +101,7 @@ def log_and_extract_input(method, path_params=None):
         "body": data,
         "url": url,
         "base_url": base_url
-        }
+    }
 
     # Pull out the fields list as a separate element.
     if args and args.get('fields', None):
@@ -117,14 +118,15 @@ def log_and_extract_input(method, path_params=None):
 
 application = Flask(__name__)
 
+
 # This function performs a basic health check. We will flesh this out.
 @application.route("/health", methods=["GET"])
 def health_check():
-
-    rsp_data = { "status": "healthy", "location": "EC2", "time": str(datetime.now()) }
+    rsp_data = {"status": "healthy", "location": "EC2", "time": str(datetime.now())}
     rsp_str = json.dumps(rsp_data)
     rsp = Response(rsp_str, status=200, content_type="application/json")
     return rsp
+
 
 # @application.route("/Users", methods=["GET", "POST"])
 # def users():
@@ -158,48 +160,71 @@ def tbls(dbname):
 
     inputs = log_and_extract_input(dbs, None)
     res = dta.get_tables(dbname)
-    #print(res)
+    # print(res)
 
     i = len(res) - 1
     while i >= 0:
         res[i] = res[i]['TABLE_NAME']
         i -= 1
 
-    rsp = Response(json.dumps(res,default=str), status=200, content_type="application/json")
+    rsp = Response(json.dumps(res, default=str), status=200, content_type="application/json")
     return rsp
+
 
 @application.route('/<resource_name>', methods=['GET', 'POST'])
 def get_resource(resource_name, dbname=_db_name):
-
+    print("get_resource")
     result = None
-    resource_name=resource_path_translator[resource_name]
+    resource_name = resource_path_translator[resource_name]
     try:
-        context = log_and_extract_input(get_resource, (resource_name))
-        #print(context,"this is context")
+        context = log_and_extract_input(get_resource, resource_name)
 
         #
         # SOME CODE GOES HERE
         #
         # -- TO IMPLEMENT --
-
-
         if request.method == 'GET':
             #
             # SOME CODE GOES HERE
             #
             # -- TO IMPLEMENT --
-            fields = context.get("fields", None)
-            #print((context['query_params']))
-            temp = context.get("body", None)
-            for i in context['query_params']:
-                if i != 'field' and i not in context["body"]:
-                    temp[i] = context['query_params'][i]
-            # print(fields)
-            r_table = dta.get_rdb_table(resource_name, dbname, connect_info=c_info)
-            res = r_table.find_by_template(template=temp, field_list=fields)
+            args = request.args
 
-            rsp = Response(json.dumps(res, default=str), status=200, content_type="application/json")
-            # rsp = Response(json.dumps(res, default=str), status=200, content_type="application/json")
+            offset = args.get('offset') if 'offset' in args else 0
+            limit = args.get('limit') if 'limit' in args else None
+
+            fields = context.get("fields", None)
+
+            # print(context['query_params'])
+            # print('body'+ str(context["body"]))
+
+            temp = context.get("body", None) if context.get("body", None) is not None else {}
+
+            for i in context['query_params']:
+                if i != 'offset' and i != 'limit':
+                    temp[i] = context['query_params'][i]
+
+            r_table = dta.get_rdb_table(resource_name, dbname, connect_info=c_info)
+            res = r_table.find_by_template(template=temp, field_list=fields, offset=offset, limit=limit)
+
+            if limit is None and offset == 0:
+                rsp = Response(json.dumps({'data':res}, default=str), status=200, content_type="application/json")
+            else:
+                total = r_table.get_row_count()
+                next_link = request.base_url + '?limit=' + str(limit) + (
+                    '&offset=' + str(int(offset) + int(limit)) if int(offset) + int(limit) < int(total)
+                    else '&offset=' + str(total))
+                prev_link = request.base_url + '?limit=' + str(limit) + (
+                    '&offset=' + str(int(offset) - int(limit)) if int(offset) - int(limit) >= 0
+                    else '&offset=' + '0')
+                rsp = Response(json.dumps({'pagination': {'offset': int(offset), 'limit': int(limit), 'total': total},
+                                           'data': res,
+                                           'links': {
+                                               'next': next_link,
+                                               'prev': prev_link
+                                           }
+                                           }, default=str), status=200, content_type="application/json")
+
             return rsp
 
         elif request.method == 'POST':
@@ -210,7 +235,7 @@ def get_resource(resource_name, dbname=_db_name):
             # print((context['query_params']))
             temp = context['body']
 
-            print(temp,"This is temp")
+            print(temp, "This is temp")
             for i in context['query_params']:
                 if i != 'field':
                     temp[i] = context['query_params'][i]
@@ -227,9 +252,9 @@ def get_resource(resource_name, dbname=_db_name):
         print("Exception e = ", e)
 
 
-
 @application.route('/<resource>/<primary_key>', methods=['GET', 'POST', 'DELETE'])
 def resource_by_id(resource, primary_key, dbname=_db_name):
+    print('resourcebyid')
     """
 
     :param dbname: Schema/database name.
@@ -243,7 +268,7 @@ def resource_by_id(resource, primary_key, dbname=_db_name):
     try:
         # Parse the incoming request into an application specific format.
         context = log_and_extract_input(resource_by_id, (dbname, resource, primary_key))
-        #print(context)
+        # print(context)
 
         #
         # SOME CODE GOES HERE
@@ -259,9 +284,9 @@ def resource_by_id(resource, primary_key, dbname=_db_name):
             fields = context.get("fields", None)
             r_table = dta.get_rdb_table(resource, dbname, connect_info=c_info)
             key = primary_key.split(_key_delimiter)
-            res = r_table.find_by_primary_key(key,field_list=fields)
+            res = r_table.find_by_primary_key(key, field_list=fields)
 
-            rsp = Response(json.dumps(res,default=str), status=200, content_type="application/json")
+            rsp = Response(json.dumps(res, default=str), status=200, content_type="application/json")
             return rsp
 
 
@@ -274,7 +299,7 @@ def resource_by_id(resource, primary_key, dbname=_db_name):
             key = primary_key.split(_key_delimiter)
             res = r_table.delete_by_key(key)
 
-            rsp = Response(json.dumps(res,default=str), status=200, content_type="application/json")
+            rsp = Response(json.dumps(res, default=str), status=200, content_type="application/json")
             return rsp
 
         elif request.method == 'POST':
@@ -289,7 +314,7 @@ def resource_by_id(resource, primary_key, dbname=_db_name):
             key = primary_key.split(_key_delimiter)
             res = r_table.update_by_key(key, new_values=temp)
 
-            rsp = Response(json.dumps(res,default=str), status=200, content_type="application/json")
+            rsp = Response(json.dumps(res, default=str), status=200, content_type="application/json")
             return rsp
 
 
@@ -298,18 +323,10 @@ def resource_by_id(resource, primary_key, dbname=_db_name):
         return handle_error(e, result)
 
 
-
-
-
-
 # run the app.
 if __name__ == "__main__":
     # Setting debug to True enables debug output. This line should be
     # removed before deploying a production app.
-
-
-
-
 
     application.debug = True
     application.run(host='0.0.0.0', port=5000)

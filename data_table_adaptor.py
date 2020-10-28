@@ -1,6 +1,6 @@
 import pymysql
 import dbutils
-import RDBDataTable
+import RDBDatatable
 
 # The REST application server app.py will be handling multiple requests over a long period of time.
 # It is inefficient to create an instance of RDBDataTable for each request.  This is a cache of created
@@ -30,7 +30,7 @@ def get_rdb_table(table_name, db_name, key_columns=None, connect_info=""):
     if result is None:
 
         # Make an RDBDataTable for this database table.
-        result = RDBDataTable.RDBDataTable(table_name, db_name, key_columns, connect_info)
+        result = RDBDatatable.RDBDataTable(table_name, db_name, key_columns, connect_info)
 
         # Add to the cache.
         _db_tables[key] = result

@@ -106,7 +106,7 @@ def template_to_where_clause(template):
     return result
 
 
-def create_select(table_name, template, fields=None, order_by=None, limit=None, offset=None, is_select=True):
+def create_select(table_name, template, fields=None, order_by=None, limit=None, offset=0, is_select=True):
     """
     Produce a select statement: sql string and args.
 
@@ -114,8 +114,8 @@ def create_select(table_name, template, fields=None, order_by=None, limit=None, 
     :param fields: Columns to select (an array of column name)
     :param template: One of Don Ferguson's weird JSON/python dictionary templates.
     :param order_by: Ignore for now.
-    :param limit: Ignore for now.
-    :param offset: Ignore for now.
+    :param limit: limit of returned entry
+    :param offset: offset
     :return: A tuple of the form (sql string, args), where the sql string is a template.
     """
 
@@ -134,6 +134,11 @@ def create_select(table_name, template, fields=None, order_by=None, limit=None, 
         sql = "select " + field_list + " from " +  table_name + " " + w_clause
     else:
         sql = "delete from " + table_name + " " + w_clause
+
+    if limit != None:
+        sql += " limit " + str(limit)
+    if offset != 0:
+        sql += " offset " + str(offset)
 
     return (sql, args)
 

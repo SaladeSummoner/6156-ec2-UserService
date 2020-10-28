@@ -7,20 +7,21 @@ import dbutils
 
 # You do not need to do anything about the logging stuff. You can just ignore, or you can use if you want.
 import logging
+
 logger = logging.getLogger()
 
 # Makes pretty print the RDBDataTable rows a little better.
 pd.set_option('display.width', 256)
 pd.set_option('display.max_columns', 12)
 
-pw="This is only for default:)"
-class RDBDataTable():
+pw = "This is only for default:)"
+
+
+class RDBDataTable:
     # Default connection information in case the code does not pass an object
     # specific connection on object creation.
     #
     # NOTE: You may just use the default connector if you want.
-
-
 
     _rows_to_print = 5
 
@@ -42,7 +43,7 @@ class RDBDataTable():
         # RDBDataTable is not told the keys. It can extract from the schema using DML statememts.
         if key_columns is not None:
             raise ValueError("RDBs know the keys. You should set in the DB use DML."
-            )
+                             )
 
         # Initialize and store information in the parent class.
         super().__init__()
@@ -78,7 +79,6 @@ class RDBDataTable():
         self._related_resources = None
         self_columns = None
 
-
         """
         You should implement these methods. See the implementation templates below.
         """
@@ -111,10 +111,8 @@ class RDBDataTable():
         # -- TO IMPLEMENT --
         q = "select count(*) from " + self._table_name
         res, d = dbutils.run_q(q, conn=self._cnx)
-        #print(d[0]['count(*)'],type(d[0]['count(*)']),"132",type(d),res)
+        # print(d[0]['count(*)'],type(d[0]['count(*)']),"132",type(d),res)
         return d[0]['count(*)']
-
-
 
     def get_primary_key_columns(self):
         """
@@ -123,17 +121,17 @@ class RDBDataTable():
         """
 
         # -- TO IMPLEMENT --
-        q = "SELECT `COLUMN_NAME` FROM `information_schema`.`COLUMNS` WHERE (`TABLE_SCHEMA` = '" + self._db_name +"') AND (`TABLE_NAME` = '"+ self._table_name +"') AND (`COLUMN_KEY` = 'PRI');"
+        q = "SELECT `COLUMN_NAME` FROM `information_schema`.`COLUMNS` WHERE (`TABLE_SCHEMA` = '" + self._db_name + "') AND (`TABLE_NAME` = '" + self._table_name + "') AND (`COLUMN_KEY` = 'PRI');"
         res, d = dbutils.run_q(q, conn=self._cnx)
         print(d)
         col_name = []
-        i = len(d)-1
+        i = len(d) - 1
         for j in d:
             if i >= 0:
                 col_name.append(d[i]['COLUMN_NAME'])
-                i -=1
-        #print(col_name,type(col_name))
-        #print(d[0]['COLUMN_NAME'],type([d[0]['COLUMN_NAME']]),"146")
+                i -= 1
+        # print(col_name,type(col_name))
+        # print(d[0]['COLUMN_NAME'],type([d[0]['COLUMN_NAME']]),"146")
         return col_name
         # Hint. Google "get primary key columns mysql"
         # Hint. THE ORDER OF THE COLUMNS IN THE KEY DEFINITION MATTERS.
@@ -173,7 +171,7 @@ class RDBDataTable():
 
         return result
 
-    def find_by_template(self, template, field_list=None, limit=None, offset=None, order_by=None, commit=True):
+    def find_by_template(self, template, field_list=None, limit=None, offset=0, order_by=None, commit=True):
         """
 
         :param template: A dictionary of the form { "field1" : value1, "field2": value2, ...}
@@ -188,7 +186,8 @@ class RDBDataTable():
         result = None
 
         try:
-            sql, args = dbutils.create_select(self._full_table_name, template=template, fields=field_list)
+            sql, args = dbutils.create_select(self._full_table_name, template=template, fields=field_list, limit=limit,
+                                              offset=offset)
             res, data = dbutils.run_q(sql=sql, args=args, conn=self._cnx, commit=True, fetch=True)
         except Exception as e:
             print("Exception e = ", e)
