@@ -11,15 +11,15 @@ import json
 import os
 import sys
 import logging
-
+import uuid
 from flask import Flask, Response, Request
 from flask import request
+
 
 import pymysql
 from datetime import datetime
 import data_table_adaptor as dta
 
-import user
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
@@ -31,7 +31,7 @@ resource_path_translator["Users"] = "user_table"
 resource_path_translator["Address"] = "address_table"
 _db_name = "userservice"
 
-print("Environment = ", os.environ)
+# print("Environment = ", os.environ)
 
 pw = os.environ['dbpw']
 # print("Environment = ", os.environ['dbpw'])
@@ -118,7 +118,6 @@ def log_and_extract_input(method, path_params=None):
 
 application = Flask(__name__)
 
-
 # This function performs a basic health check. We will flesh this out.
 @application.route("/health", methods=["GET"])
 def health_check():
@@ -127,28 +126,6 @@ def health_check():
     rsp = Response(rsp_str, status=200, content_type="application/json")
     return rsp
 
-
-# @application.route("/Users", methods=["GET", "POST"])
-# def users():
-#     connection = pymysql.connect(**c_info)
-#     print("connection established")
-#     try:
-#         with connection.cursor() as cur:
-#             if request.method == "POST":
-#                 details = request.form
-#                 res = user.insertUser(details, cur)
-#                 connection.commit()
-#                 return json.dumps(res, indent=4, default=str)
-#
-#             if request.method == "GET":
-#                 res = user.getUsers()
-#                 return json.dumps(res, indent=4, default=str)
-#
-#     except Exception as e:
-#         print("Exeception occured:{}".format(e))
-#     finally:
-#         connection.close()
-#         print("connect close")
 
 @application.route("/databases/<dbname>", methods=["GET"])
 def tbls(dbname):
@@ -171,9 +148,8 @@ def tbls(dbname):
     return rsp
 
 
-@application.route('/<resource_name>', methods=['GET', 'POST'])
+@application.route('/api/<resource_name>', methods=['GET', 'POST'])
 def get_resource(resource_name, dbname=_db_name):
-    print("get_resource")
     result = None
     resource_name = resource_path_translator[resource_name]
     try:
@@ -189,26 +165,36 @@ def get_resource(resource_name, dbname=_db_name):
             #
             # -- TO IMPLEMENT --
             args = request.args
+            # print(args)
 
             offset = args.get('offset') if 'offset' in args else 0
             limit = args.get('limit') if 'limit' in args else None
 
             fields = context.get("fields", None)
 
-            # print(context['query_params'])
-            # print('body'+ str(context["body"]))
-
-            temp = context.get("body", None) if context.get("body", None) is not None else {}
-
+            # temp = context.get("body", None) if context.get("body", None) is not None else {}
+            temp = {}
             for i in context['query_params']:
                 if i != 'offset' and i != 'limit':
-                    temp[i] = context['query_params'][i]
+                    temp.update({i: context['query_params'][i]})
+            #print(temp)
 
             r_table = dta.get_rdb_table(resource_name, dbname, connect_info=c_info)
             res = r_table.find_by_template(template=temp, field_list=fields, offset=offset, limit=limit)
+            data = []
+            for result in res:
+                link = [
+                    {
+                        "rel": "email",
+                        "href": "/api/user?emails=" + result["email"],
+                        "method": "GET"
+                    }
+                ]
+                data.append({"data": result, "links": link})
+            #print(data)
 
             if limit is None and offset == 0:
-                rsp = Response(json.dumps({'data':res}, default=str), status=200, content_type="application/json")
+                rsp = Response(json.dumps({'data': data}, default=str), status=200, content_type="application/json")
             else:
                 total = r_table.get_row_count()
                 next_link = request.base_url + '?limit=' + str(limit) + (
@@ -218,7 +204,7 @@ def get_resource(resource_name, dbname=_db_name):
                     '&offset=' + str(int(offset) - int(limit)) if int(offset) - int(limit) >= 0
                     else '&offset=' + '0')
                 rsp = Response(json.dumps({'pagination': {'offset': int(offset), 'limit': int(limit), 'total': total},
-                                           'data': res,
+                                           'data': data,
                                            'links': {
                                                'next': next_link,
                                                'prev': prev_link
@@ -228,22 +214,27 @@ def get_resource(resource_name, dbname=_db_name):
             return rsp
 
         elif request.method == 'POST':
-            #
-            # SOME CODE GOES HERE
-            #
-            # -- TO IMPLEMENT --
-            # print((context['query_params']))
-            temp = context['body']
-
-            print(temp, "This is temp")
-            for i in context['query_params']:
-                if i != 'field':
-                    temp[i] = context['query_params'][i]
-            # print(fields)
-            r_table = dta.get_rdb_table(resource_name, dbname, connect_info=c_info)
-            res = r_table.insert(new_record=temp)
-
-            rsp = Response(json.dumps(res, default=str), status=200, content_type="application/json")
+            context = log_and_extract_input(get_resource, resource_name)
+            param = context['body']
+            # print(param)
+            temp = {
+                'id': str(uuid.uuid4()),
+                'last_name': param['last_name'],
+                'first_name': param['first_name'],
+                'email': param['email'],
+                'hashed_password': param['password'],
+                'created_date': datetime.now()
+            }
+            # print(temp)
+            r_table = dta.get_rdb_table(resource_name, _db_name, connect_info=c_info)
+            res = r_table.insert(temp)
+            # print(res)
+            if res == 1:
+                location = {'Location': '/api/users/' + temp['id']}
+                rsp = Response(json.dumps("user created success"), status=201, content_type="application/json",
+                               headers=location)
+            else:
+                rsp = Response(json.dumps("user created fail"), status=400, content_type="application/json")
             return rsp
         else:
             result = "Invalid request."
@@ -321,7 +312,6 @@ def resource_by_id(resource, primary_key, dbname=_db_name):
     except Exception as e:
         print(e)
         return handle_error(e, result)
-
 
 # run the app.
 if __name__ == "__main__":
