@@ -148,7 +148,7 @@ def tbls(dbname):
     return rsp
 
 
-@application.route('/api/<resource_name>', methods=['GET', 'POST'])
+@application.route('/<resource_name>', methods=['GET', 'POST'])
 def get_resource(resource_name, dbname=_db_name):
     result = None
     resource_name = resource_path_translator[resource_name]
@@ -177,22 +177,30 @@ def get_resource(resource_name, dbname=_db_name):
             for i in context['query_params']:
                 if i != 'offset' and i != 'limit':
                     temp.update({i: context['query_params'][i]})
-            #print(temp)
 
             r_table = dta.get_rdb_table(resource_name, dbname, connect_info=c_info)
             res = r_table.find_by_template(template=temp, field_list=fields, offset=offset, limit=limit)
             data = []
-            for result in res:
-                link = [
-                    {
-                        "rel": "email",
-                        "href": "/api/user?emails=" + result["email"],
-                        "method": "GET"
-                    }
-                ]
-                data.append({"data": result, "links": link})
-            #print(data)
 
+            for result in res:
+                if resource_name == "user_table":
+                    link = [
+                        {
+                            "rel": "email",
+                            "href": "/api/user?emails=" + result["email"],
+                            "method": "GET"
+                        }
+                    ]
+                    data.append({"data": result, "links": link})
+                elif resource_name == "address_table":
+                    link = [
+                        {
+                            "rel": "user for this address",
+                            "href": "/api/user?id=" + str(result["userid"]),
+                            "method": "GET"
+                        }
+                    ]
+                    data.append({"data": result, "links": link})
             if limit is None and offset == 0:
                 rsp = Response(json.dumps({'data': data}, default=str), status=200, content_type="application/json")
             else:
@@ -214,27 +222,22 @@ def get_resource(resource_name, dbname=_db_name):
             return rsp
 
         elif request.method == 'POST':
-            context = log_and_extract_input(get_resource, resource_name)
-            param = context['body']
-            # print(param)
-            temp = {
-                'id': str(uuid.uuid4()),
-                'last_name': param['last_name'],
-                'first_name': param['first_name'],
-                'email': param['email'],
-                'hashed_password': param['password'],
-                'created_date': datetime.now()
-            }
-            # print(temp)
-            r_table = dta.get_rdb_table(resource_name, _db_name, connect_info=c_info)
-            res = r_table.insert(temp)
-            # print(res)
-            if res == 1:
-                location = {'Location': '/api/users/' + temp['id']}
-                rsp = Response(json.dumps("user created success"), status=201, content_type="application/json",
-                               headers=location)
-            else:
-                rsp = Response(json.dumps("user created fail"), status=400, content_type="application/json")
+            #
+            # SOME CODE GOES HERE
+            #
+            # -- TO IMPLEMENT --
+            # print((context['query_params']))
+            temp = context['body']
+
+            print(temp, "This is temp")
+            for i in context['query_params']:
+                if i != 'field':
+                    temp[i] = context['query_params'][i]
+            # print(fields)
+            r_table = dta.get_rdb_table(resource_name, dbname, connect_info=c_info)
+            res = r_table.insert(new_record=temp)
+
+            rsp = Response(json.dumps(res, default=str), status=200, content_type="application/json")
             return rsp
         else:
             result = "Invalid request."
@@ -312,6 +315,33 @@ def resource_by_id(resource, primary_key, dbname=_db_name):
     except Exception as e:
         print(e)
         return handle_error(e, result)
+
+@application.route('/api/users', methods=['POST'])
+def create_user():
+    table = "user_table"
+    context = log_and_extract_input(get_resource, table)
+    param = context['body']
+    # print(param)
+    temp = {
+        'id': str(uuid.uuid4()),
+        'last_name': param['last_name'],
+        'first_name': param['first_name'],
+        'email': param['email'],
+        'hashed_password': param['password'],
+        'created_date': datetime.now()
+    }
+    # print(temp)
+    r_table = dta.get_rdb_table(table, _db_name, connect_info=c_info)
+    res = r_table.insert(temp)
+    # print(res)
+    if res == 1:
+        location = {'Location': '/api/users/' + temp['id']}
+        rsp = Response(json.dumps("user created success"), status=201, content_type="application/json",
+                       headers=location)
+    else:
+        rsp = Response(json.dumps("user created fail"), status=400, content_type="application/json")
+    return rsp
+
 
 # run the app.
 if __name__ == "__main__":
