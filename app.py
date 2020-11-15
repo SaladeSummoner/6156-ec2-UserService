@@ -15,11 +15,10 @@ import uuid
 from flask import Flask, Response, Request
 from flask import request
 
-
 import pymysql
 from datetime import datetime
 import data_table_adaptor as dta
-
+import middleware.security as security
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
@@ -117,6 +116,7 @@ def log_and_extract_input(method, path_params=None):
 
 
 application = Flask(__name__)
+
 
 # This function performs a basic health check. We will flesh this out.
 @application.route("/health", methods=["GET"])
@@ -311,14 +311,14 @@ def resource_by_id(resource, primary_key, dbname=_db_name):
             rsp = Response(json.dumps(res, default=str), status=200, content_type="application/json")
             return rsp
 
-
     except Exception as e:
         print(e)
         return handle_error(e, result)
 
+
 @application.route('/api/users', methods=['POST'])
 def create_user():
-    table = "user_table"
+    table = resource_path_translator["Users"]
     context = log_and_extract_input(get_resource, table)
     param = context['body']
     # print(param)
@@ -341,6 +341,71 @@ def create_user():
     else:
         rsp = Response(json.dumps("user created fail"), status=400, content_type="application/json")
     return rsp
+
+
+def _register(user_info):
+    hashed_pw = security.encode_pw(user_info['password'])
+    user_info['hashed_password'] = hashed_pw
+    del user_info['password']
+
+    table = resource_path_translator["Users"]
+    new_uuid = str(uuid.uuid4())
+    temp = {
+        'id': new_uuid,
+        'last_name': user_info['last_name'],
+        'first_name': user_info['first_name'],
+        'email': user_info['email'],
+        'hashed_password': user_info['password'],
+        'created_date': datetime.now()
+    }
+    # print(temp)
+    r_table = dta.get_rdb_table(table, _db_name, connect_info=c_info)
+    res = r_table.insert(temp)
+    tok = security.generate_token(user_info)
+
+    return new_uuid, tok
+
+
+@application.route('/api/registration', methods=['POST'])
+def registration():
+    inputs = log_and_extract_input(registration)
+
+    rsp_data = None
+    rsp_status = None
+    rsp_txt = None
+
+    try:
+        if inputs['method'] == 'POST':
+
+            rsp, token = _register(input['body'])
+            if rsp is not None:
+                rsp_status = 201
+                rsp_txt = 'CREATED'
+                link = rsp
+                auth = token
+            else:
+                rsp_data = None
+                rsp_status = 404
+                rsp_txt = 'NOT FOUND'
+        else:
+            rsp_data = None
+            rsp_txt = 'NOT IMPLEMENTED'
+            rsp_status=501
+
+        if rsp_txt == 'CREATED':
+            headers = {'Location': '/api/users/' + link, 'Authorization:': auth}
+            full_rsp = Response(rsp_txt, headers=headers, status=rsp_status,content_type='text/plain')
+        else:
+            full_rsp = Response(rsp_txt, status=rsp_status,content_type='text/plain')
+
+    except Exception as e:
+        logger.error('api/registration: Exception' + str(e))
+        rsp_status = 500
+        rsp_txt = 'INTERNAL SERVER ERROR'
+        full_rsp = Response(rsp_txt, status=rsp_status,content_type='text/plain')
+
+    return full_rsp
+
 
 
 # run the app.
