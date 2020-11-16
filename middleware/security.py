@@ -21,8 +21,14 @@ def decode_pw(tok):
 
 def generate_token(user_info):
     temp = {}
-    for k in ['id', 'last_name', 'first_name', 'email', 'role']:
+    for k in ['id', 'last_name', 'first_name', 'email']:
         temp[k] = user_info.get(k, None)
+
+    # hardcode id admin for admin account
+    if temp['id'] is not 'admin':
+        temp['role'] = 'User'
+    else:
+        temp['role'] = 'Admin'
 
     res = jwt.encode(temp, _secret)
     return res
@@ -39,7 +45,10 @@ def decode_token(tok):
 
 
 def check_password(in_password, hashed_pw):
-    pass
+    decoded = decode_pw(hashed_pw)
+    if in_password == decoded:
+        return True
+    return False
 
 
 def check_authentication(request):
