@@ -38,7 +38,6 @@ def get_rdb_table(table_name, db_name, key_columns=None, connect_info=""):
     return result
 
 
-
 def get_databases():
     """
 
@@ -49,6 +48,7 @@ def get_databases():
     q = "show databases"
     res, d = dbutils.run_q(q, conn=_conn)
     return d
+
 
 def get_tables(dbname):
 
