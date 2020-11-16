@@ -10,13 +10,13 @@ _whitelist = [
 
 
 def encode_pw(pw):
-    res = jwt.encode(pw, _secret)
+    res = jwt.encode({'hashed_password': pw}, _secret)
     return res
 
 
 def decode_pw(tok):
     res = jwt.decode(tok, _secret)
-    return res
+    return res.get('hashed_password')
 
 
 def generate_token(user_info):

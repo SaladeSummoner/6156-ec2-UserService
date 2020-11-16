@@ -350,12 +350,13 @@ def _register(user_info):
 
     table = resource_path_translator["Users"]
     new_uuid = str(uuid.uuid4())
+    print(new_uuid)
     temp = {
         'id': new_uuid,
         'last_name': user_info['last_name'],
         'first_name': user_info['first_name'],
         'email': user_info['email'],
-        'hashed_password': user_info['password'],
+        'hashed_password': user_info['hashed_password'],
         'created_date': datetime.now()
     }
     # print(temp)
@@ -376,8 +377,7 @@ def registration():
 
     try:
         if inputs['method'] == 'POST':
-
-            rsp, token = _register(input['body'])
+            rsp, token = _register(inputs['body'])
             if rsp is not None:
                 rsp_status = 201
                 rsp_txt = 'CREATED'
@@ -394,18 +394,17 @@ def registration():
 
         if rsp_txt == 'CREATED':
             headers = {'Location': '/api/users/' + link, 'Authorization:': auth}
-            full_rsp = Response(rsp_txt, headers=headers, status=rsp_status,content_type='text/plain')
+            full_rsp = Response(rsp_txt, headers=headers, status=rsp_status, content_type='text/plain')
         else:
             full_rsp = Response(rsp_txt, status=rsp_status,content_type='text/plain')
 
     except Exception as e:
-        logger.error('api/registration: Exception' + str(e))
+        logger.error('api/registration: Exception=' + str(e))
         rsp_status = 500
         rsp_txt = 'INTERNAL SERVER ERROR'
         full_rsp = Response(rsp_txt, status=rsp_status,content_type='text/plain')
 
     return full_rsp
-
 
 
 # run the app.
