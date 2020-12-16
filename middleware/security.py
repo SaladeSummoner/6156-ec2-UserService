@@ -5,7 +5,8 @@ import copy
 _secret = 'secret'
 
 _whitelist = [
-    '/api/registration'
+    '/api/registration',
+    '/api/login'
 ]
 
 
@@ -24,7 +25,7 @@ def generate_token(user_info):
     for k in ['id', 'last_name', 'first_name', 'email']:
         temp[k] = user_info.get(k, None)
 
-    # hardcode id admin for admin account
+    # hard code id admin for admin account
     if temp['id'] is not 'admin':
         temp['role'] = 'User'
     else:

@@ -19,6 +19,7 @@ import pymysql
 from datetime import datetime
 import data_table_adaptor as dta
 import middleware.security as security
+import middleware.notification as notify
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
@@ -116,6 +117,21 @@ def log_and_extract_input(method, path_params=None):
 
 
 application = Flask(__name__)
+
+
+@application.before_request
+def before_decorator():
+    res = security.check_authentication(request)
+    print('check_auth res = ', res)
+    if res[0] != 200:
+        handle_args(res[0], res[1], res[2])
+
+
+@application.after_request
+def after_decorator(rsp):
+    print('in after decorator')
+    notify.notify(request, rsp)
+    return rsp
 
 
 # This function performs a basic health check. We will flesh this out.
