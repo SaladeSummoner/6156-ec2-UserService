@@ -1,3 +1,4 @@
+requests
 boto3
 PyJWT
 click==7.1.2
