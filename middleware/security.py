@@ -59,7 +59,7 @@ def check_authentication(request):
 
         if path not in _whitelist:
             header = dict(request.headers)
-            tok = header.get('Authorization',None)
+            tok = header.get('Authorization', None)
 
             if tok is not None:
                 dec = decode_token(tok)

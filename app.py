@@ -20,19 +20,21 @@ from datetime import datetime
 import data_table_adaptor as dta
 import middleware.security as security
 import middleware.notification as notify
+import address_validation as address
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 _key_delimiter = "_"
 
-resource_path_translator = {}
-resource_path_translator["Users"] = "user_table"
-resource_path_translator["Address"] = "address_table"
+resource_path_translator = {
+    "Users": "user_table",
+    "Address": "address_table"
+}
+
 _db_name = "userservice"
 
 # print("Environment = ", os.environ)
-
 pw = os.environ['dbpw']
 # print("Environment = ", os.environ['dbpw'])
 
@@ -124,14 +126,16 @@ def before_decorator():
     res = security.check_authentication(request)
     print('check_auth res = ', res)
     if res[0] != 200:
-        handle_args(res[0], res[1], res[2])
+        return "Unauthorized", 401, {'Content-Type': 'text/plain; charset=utf-8'}
 
 
-@application.after_request
-def after_decorator(rsp):
-    print('in after decorator')
-    notify.notify(request, rsp)
-    return rsp
+# @application.after_request
+# def after_decorator(rsp):
+#     print('in after decorator')
+#     notify.notify(request, rsp)
+#     return rsp
+
+#####################################################################
 
 
 # This function performs a basic health check. We will flesh this out.
@@ -151,7 +155,7 @@ def tbls(dbname):
     :return: List of tables in the database.
     """
 
-    inputs = log_and_extract_input(dbs, None)
+    inputs = log_and_extract_input(tbls, None)
     res = dta.get_tables(dbname)
     # print(res)
 
@@ -449,7 +453,7 @@ def user_login():
             rsp_status = 501
 
         if rsp_txt == 'CREATED':
-            headers = {'Authorization:': tok}
+            headers = {'Authorization': tok}
             full_rsp = Response(rsp_txt, headers=headers, status=rsp_status, content_type='text/plain')
         else:
             full_rsp = Response(rsp_txt, status=rsp_status, content_type='text/plain')
@@ -461,6 +465,67 @@ def user_login():
         full_rsp = Response(rsp_txt, status=rsp_status, content_type='text/plain')
 
     return full_rsp
+
+
+@application.route('/api/address', methods=['POST'])
+def create_address():
+
+    user_info = security.check_authentication(request)
+
+    table = resource_path_translator["Address"]
+    context = log_and_extract_input(create_address, table)
+    param = context['body']
+
+    keys = {
+        'auth_id': '1bd58da0-f135-09f7-7a34-661e77d8bc1f',
+        'auth_token': 'qCvQZJY3rV96sOJnSg1P',
+        'address_url': 'https://us-street.api.smartystreets.com/street-address'
+    }
+    # print(param)
+    check_rsp = address.validate_address(param, keys)
+    if check_rsp is None or check_rsp == 422:
+        rsp = Response(json.dumps("invalid input"), status=422, content_type="application/json")
+        return rsp
+    if check_rsp == 500:
+        rsp = Response(json.dumps("Internal server error"), status=500, content_type="application/json")
+        return rsp
+    try:
+        temp = {
+            'id': check_rsp['delivery_point_barcode'],
+            "primary_number": check_rsp.get('primary_number', None),
+            "street_predirection": check_rsp.get('street_predirection', None),
+            "street_postdirection": check_rsp.get('street_postdirection', None),
+            "street_name": check_rsp.get('street_name', None),
+            "street_suffix": check_rsp.get('street_suffix', None),
+            "secondary_number": check_rsp.get('secondary_number', None),
+            "secondary_designator": check_rsp.get('primary_number', None),
+            "extra_secondary_number": check_rsp.get('extra_secondary_number', None),
+            "extra_secondary_designator": check_rsp.get('extra_secondary_designator', None),
+            "city_name": check_rsp.get('primary_number', None),
+            "state_abbreviation": check_rsp.get('primary_number', None),
+            "zipcode": check_rsp.get('primary_number', None),
+            "userid": user_info[2]['id']
+        }
+    except KeyError as ke:
+        rsp = Response(json.dumps("Internal server error"), status=500, content_type="application/json")
+        return rsp
+        raise ke
+
+    print(temp)
+    r_table = dta.get_rdb_table(table, _db_name, connect_info=c_info)
+    res = r_table.insert(temp)
+    if res == 1:
+        location = {'Location': '/api/address/' + temp['id']}
+        rsp = Response(json.dumps("Created"), status=201, content_type="application/json",
+                       headers=location)
+    else:
+        rsp = Response(json.dumps("Bad Request"), status=400, content_type="application/json")
+    return rsp
+
+
+@application.route('/address_rsp/<user_id>', methods=['GET'])
+def address_rsp():
+    pass
 
 
 # run the app.

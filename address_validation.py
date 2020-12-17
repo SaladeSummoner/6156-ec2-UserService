@@ -24,7 +24,7 @@ def validate_address(address, context):
         if state is not None:
             params['state'] = state
 
-        city = address.get('state', None)
+        city = address.get('city', None)
         if city is not None:
             params['city'] = city
 
