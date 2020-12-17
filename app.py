@@ -135,7 +135,7 @@ def after_decorator(rsp):
 
 
 # This function performs a basic health check. We will flesh this out.
-@application.route("/health", methods=["GET"])
+@application.route("/api/health", methods=["GET"])
 def health_check():
     rsp_data = {"status": "healthy", "location": "EC2", "time": str(datetime.now())}
     rsp_str = json.dumps(rsp_data)
@@ -143,7 +143,7 @@ def health_check():
     return rsp
 
 
-@application.route("/databases/<dbname>", methods=["GET"])
+@application.route("/api/databases/<dbname>", methods=["GET"])
 def tbls(dbname):
     """
 
@@ -164,7 +164,7 @@ def tbls(dbname):
     return rsp
 
 
-@application.route('/<resource_name>', methods=['GET', 'POST'])
+@application.route('/api/<resource_name>', methods=['GET', 'POST'])
 def get_resource(resource_name, dbname=_db_name):
     result = None
     resource_name = resource_path_translator[resource_name]
@@ -262,7 +262,7 @@ def get_resource(resource_name, dbname=_db_name):
         print("Exception e = ", e)
 
 
-@application.route('/<resource>/<primary_key>', methods=['GET', 'POST', 'DELETE'])
+@application.route('/api/<resource>/<primary_key>', methods=['GET', 'PUT', 'DELETE'])
 def resource_by_id(resource, primary_key, dbname=_db_name):
     print('resourcebyid')
     """
@@ -311,7 +311,7 @@ def resource_by_id(resource, primary_key, dbname=_db_name):
             rsp = Response(json.dumps(res, default=str), status=200, content_type="application/json")
             return rsp
 
-        elif request.method == 'POST':
+        elif request.method == 'PUT':
             #
             # SOME CODE GOES HERE
             #
