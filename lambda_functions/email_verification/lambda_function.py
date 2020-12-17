@@ -1,14 +1,15 @@
 import boto3
 import json
 import jwt
+import base64
 from botocore.exceptions import ClientError
 
 client = boto3.client('ses')
 
 _secret = "my_secret"
-_base_url = "https://3p49xksrz3.execute-api.us-east-1.amazonaws.com/api/email_verification?token="
+_base_url = "https://b933m3lcjl.execute-api.us-east-2.amazonaws.com/stage1/api/email_verification?token="
 
-_redirect_url = "http://psyduckstaticwebsite.s3-website.us-east-2.amazonaws.com/Website/static/email_success.html?"
+_redirect_url = "http://psyduckstaticwebsite.s3-website.us-east-2.amazonaws.com/Website/static/register_success.html?"
 _redirect_url += "lastname={}&firstname={}&email={}"
 
 _verification_email_sender = "niejingjing1025@163.com"
@@ -151,6 +152,8 @@ def handle_verification(normal_event):
 
 def generate_response(result):
 
+    result = json.loads(result)
+
     lastname = result.get("last_name", None)
     firstname = result.get("first_name", None)
     email = result.get("email", None)
@@ -159,11 +162,12 @@ def generate_response(result):
     headers = {}
     headers["location"] = redirect_url
 
-    result["message"] = "Congratulation! Email Verified!"
     result = {
         "statusCode": 302,
         "headers": headers
     }
+    result["message"] = "Congratulation! Email Verified!"
+
     return result
 
 

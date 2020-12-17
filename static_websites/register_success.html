@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<script  src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+
+	<style>
+		
+		#success {
+		    color: #4F8A10;
+		    background-color: #DFF2BF;
+		    font-size: 50px;
+		    margin: 5%;
+		    padding: 5%;
+		    padding-left: 15%;
+		    opacity: 90%;
+		}
+
+		#info {
+			color: #00529B;
+    		background-color: #BDE5F8;
+    		font-size: 30px;
+		    margin-left: 25%;
+		    margin-right: 25%;
+		    padding: 3%;
+		    padding-left: 5%;
+		    opacity: 90%;
+		}
+
+		body{
+			background-color: #f2f5fc;
+		}
+
+	</style>
+
+	<script>
+		
+		$(document).ready(function(){
+			var urlp = [];
+			var s = location.toString().split('?');
+			s = s[1].split('&');
+			for(i=0; i<s.length; i++){
+				u=s[i].split('=');
+				urlp[u[0]]=u[1];
+			}
+
+			var fname = urlp['first_name']
+			var lname = urlp['last_name']
+			var email = urlp['email']
+
+			console.log(urlp['first_name'])
+			console.log(urlp['last_name'])
+			console.log(urlp['email'])
+
+			$("#info").append("<p> First Name: "+ fname + "</p><p> Last Name: " + lname + "</p><p> Email: " + email + "</p>");
+
+		})
+
+	</script>
+
+</head>
+<body>
+	<p id="success">
+		Psyduck: Congratulation! Email Verified!
+	</p>
+	<div id="info"></div>
+
+</body>
+</html>
