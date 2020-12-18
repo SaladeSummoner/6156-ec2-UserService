@@ -36,7 +36,9 @@ _db_name = "userservice"
 
 # print("Environment = ", os.environ)
 pw = os.environ['dbpw']
-# print("Environment = ", os.environ['dbpw'])
+SMARTY_AUTH_ID = os.environ['smarty_id']
+SMARTY_AUTH_TOKEN = os.environ['smarty_token']
+
 
 c_info = {
     "host": "database-userservice.ch46gnu5bohw.us-east-2.rds.amazonaws.com",
@@ -129,11 +131,11 @@ def before_decorator():
         return "Unauthorized", 401, {'Content-Type': 'text/plain; charset=utf-8'}
 
 
-# @application.after_request
-# def after_decorator(rsp):
-#     print('in after decorator')
-#     notify.notify(request, rsp)
-#     return rsp
+@application.after_request
+def after_decorator(rsp):
+    print('in after decorator')
+    notify.notify(request, rsp)
+    return rsp
 
 #####################################################################
 
@@ -477,8 +479,8 @@ def create_address():
     param = context['body']
 
     keys = {
-        'auth_id': '1bd58da0-f135-09f7-7a34-661e77d8bc1f',
-        'auth_token': 'qCvQZJY3rV96sOJnSg1P',
+        'auth_id': SMARTY_AUTH_ID,
+        'auth_token': SMARTY_AUTH_TOKEN,
         'address_url': 'https://us-street.api.smartystreets.com/street-address'
     }
     # print(param)
