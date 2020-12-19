@@ -6,8 +6,15 @@ _secret = 'secret'
 
 _whitelist = [
     '/api/registration',
-    '/api/login'
+    '/api/login',
+    '/'
 ]
+
+_thirdpartyloginwhitelist = {
+    '/google/auth',
+    '/google/login',
+    '/google/logout'
+}
 
 
 def encode_pw(pw):
@@ -56,7 +63,7 @@ def check_authentication(request):
     result = (401, 'NOT AUTHORIZED', None)
     try:
         path = copy.copy(request.path)
-
+        print("path", path)
         if path not in _whitelist:
             header = dict(request.headers)
             tok = header.get('Authorization', None)
@@ -64,6 +71,12 @@ def check_authentication(request):
             if tok is not None:
                 dec = decode_token(tok)
                 result = (200, 'OK', dec)
+
+            for third_party_path in _thirdpartyloginwhitelist:
+                print(third_party_path, path)
+                if third_party_path in path:
+                    result = (200, 'OK', None)
+
         else:
             result = (200, 'OK', None)
     except Exception as e:

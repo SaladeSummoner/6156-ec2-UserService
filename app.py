@@ -12,7 +12,7 @@ import os
 import sys
 import logging
 import uuid
-from flask import Flask, Response, Request
+from flask import Flask, Response, Request, redirect, url_for
 from flask import request
 
 import pymysql
@@ -21,6 +21,11 @@ import data_table_adaptor as dta
 import middleware.security as security
 import middleware.notification as notify
 import address_validation as address
+
+from authlib.client import OAuth2Session
+import google.oauth2.credentials
+import googleapiclient.discovery
+import google_auth
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
@@ -35,9 +40,11 @@ resource_path_translator = {
 _db_name = "userservice"
 
 # print("Environment = ", os.environ)
+
 pw = os.environ['dbpw']
 SMARTY_AUTH_ID = os.environ['smarty_id']
 SMARTY_AUTH_TOKEN = os.environ['smarty_token']
+
 
 
 c_info = {
@@ -121,6 +128,8 @@ def log_and_extract_input(method, path_params=None):
 
 
 application = Flask(__name__)
+application.register_blueprint(google_auth.application)
+application.secret_key = os.environ.get("FN_FLASK_SECRET_KEY", default=False)
 
 
 @application.before_request
@@ -251,7 +260,7 @@ def get_resource(resource_name, dbname=_db_name):
             # print((context['query_params']))
             temp = context['body']
 
-            print(temp, "This is temp")
+
             for i in context['query_params']:
                 if i != 'field':
                     temp[i] = context['query_params'][i]
@@ -270,7 +279,7 @@ def get_resource(resource_name, dbname=_db_name):
 
 @application.route('/api/<resource>/<primary_key>', methods=['GET', 'PUT', 'DELETE'])
 def resource_by_id(resource, primary_key, dbname=_db_name):
-    print('resourcebyid')
+    # print('resourcebyid')
     """
 
     :param dbname: Schema/database name.
@@ -428,7 +437,7 @@ def registration():
     return full_rsp
 
 
-@application.route('/api/login', methods=['POST'])
+@application.route('/api/login', methods=['POST','GET'])
 def user_login():
     inputs = log_and_extract_input(user_login)
 
@@ -447,6 +456,13 @@ def user_login():
                 rsp_status = 201
                 rsp_txt = 'CREATED'
                 tok = security.generate_token(res)
+            else:
+                rsp_status = 401
+                rsp_txt = 'NOT AUTHORIZED'
+        elif inputs['method'] == 'GET':
+            fields = inputs["query_params"]
+            if fields['auth'] == 'google':
+                return redirect(url_for('google_auth.login'))
             else:
                 rsp_status = 401
                 rsp_txt = 'NOT AUTHORIZED'
@@ -524,6 +540,43 @@ def create_address():
         rsp = Response(json.dumps("Bad Request"), status=400, content_type="application/json")
     return rsp
 
+@application.route('/')
+def index():
+    try:
+        if google_auth.is_logged_in():
+            user_info = google_auth.get_user_info()
+            r_table = dta.get_rdb_table(resource_path_translator["Users"], "userservice", connect_info=c_info)
+            temp = {}
+            temp['hashed_password'] = security.encode_pw(user_info['id'])
+            field_list = ['hashed_password']
+            res = r_table.find_by_template(template=temp, field_list=field_list)
+
+            if len(res) != 0:
+                rsp_status = 201
+                rsp_txt = 'CREATED'
+                tok = security.generate_token(res[0])
+            else:
+                self_user_info = {}
+                self_user_info['password'] = user_info['id']
+                self_user_info['last_name'] = user_info['family_name']
+                self_user_info['first_name'] = user_info['given_name']
+                self_user_info['email'] = user_info['email']
+                return _register(self_user_info)
+
+            if rsp_txt == 'CREATED':
+                headers = {'Authorization': tok}
+                rsp_txt += ". You're logged as " + user_info['given_name']
+                full_rsp = Response(rsp_txt, headers=headers, status=rsp_status, content_type='text/plain')
+            else:
+                full_rsp = Response(rsp_txt, status=rsp_status, content_type='text/plain')
+    except Exception as e:
+        logger.error('api/login: Exception=' + str(e))
+        rsp_status = 500
+        rsp_txt = 'INTERNAL SERVER ERROR'
+        full_rsp = Response(rsp_txt, status=rsp_status, content_type='text/plain')
+
+    return full_rsp
+
 
 @application.route('/address_rsp/<user_id>', methods=['GET'])
 def address_rsp():
@@ -536,4 +589,8 @@ if __name__ == "__main__":
     # removed before deploying a production app.
 
     application.debug = True
-    application.run(host='0.0.0.0', port=5000)
+    application.run(host='127.0.0.1', port=5000)
+
+
+
+

@@ -1,0 +1,10 @@
+set FN_AUTH_REDIRECT_URI=http://localhost:5000/google/auth
+set FN_BASE_URI=http://localhost:5000/
+set FN_CLIENT_ID=GOOGLE API ID
+set FN_CLIENT_SECRET=GOOGL API SECRET
+
+set FLASK_APP=app.py
+set FLASK_DEBUG=1
+set FN_FLASK_SECRET_KEY=SOMETHING RANDOM AND SECRET
+
+python -m flask run -p 5000
