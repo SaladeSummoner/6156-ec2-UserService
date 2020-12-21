@@ -45,8 +45,6 @@ pw = os.environ['dbpw']
 SMARTY_AUTH_ID = os.environ['smarty_id']
 SMARTY_AUTH_TOKEN = os.environ['smarty_token']
 
-
-
 c_info = {
     "host": "database-userservice.ch46gnu5bohw.us-east-2.rds.amazonaws.com",
     "port": 3306,
@@ -55,7 +53,6 @@ c_info = {
     "db": "userservice",
     "cursorclass": pymysql.cursors.DictCursor,
 }
-
 
 def handle_args(args):
     """
@@ -387,7 +384,8 @@ def _register(user_info):
         'first_name': user_info['first_name'],
         'email': user_info['email'],
         'hashed_password': user_info['hashed_password'],
-        'created_date': datetime.now()
+        'created_date': datetime.now(),
+        'status': 'PENDING'
     }
     # print(temp)
     r_table = dta.get_rdb_table(table, _db_name, connect_info=c_info)
@@ -589,7 +587,7 @@ if __name__ == "__main__":
     # removed before deploying a production app.
 
     application.debug = True
-    application.run(host='127.0.0.1', port=5000)
+    application.run(host='0.0.0.0', port=5000)
 
 
 
