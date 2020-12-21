@@ -517,9 +517,9 @@ def create_address():
             "secondary_designator": check_rsp.get('primary_number', None),
             "extra_secondary_number": check_rsp.get('extra_secondary_number', None),
             "extra_secondary_designator": check_rsp.get('extra_secondary_designator', None),
-            "city_name": check_rsp.get('primary_number', None),
-            "state_abbreviation": check_rsp.get('primary_number', None),
-            "zipcode": check_rsp.get('primary_number', None),
+            "city_name": check_rsp.get('city_name', None),
+            "state_abbreviation": check_rsp.get('state_abbreviation', None),
+            "zipcode": check_rsp.get('zipcode', None),
             "userid": user_info[2]['id']
         }
     except KeyError as ke:
